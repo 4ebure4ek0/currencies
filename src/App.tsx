@@ -11,7 +11,7 @@ import DateInput from "./components/dateInput";
 import CheckboxUi from "./components/checkbox";
 import dayjs, { Dayjs } from "dayjs";
 import axios from "axios";
-import { LineChart, Line } from 'recharts';
+import { LineChart, Line, XAxis, CartesianGrid, Legend, Tooltip } from 'recharts';
 function App() {
   const [getApi, setGetApi] = useState<Number>(0);
   const [currencies, setCurrencies] = useState({
@@ -23,7 +23,7 @@ function App() {
     from: dayjs().subtract(7, 'd'),
     to: dayjs()
   })
-  const [data, setData] = useState<any>({})
+  const [data, setData] = useState<any>([])
   const [selectedData, setSelectedData] = useState<any>({})
 
   const handleCurrencies = (e: any) => {
@@ -37,10 +37,11 @@ function App() {
 
   useEffect(() => {
     let allData: any = data
+    let toChart: any= []
+    let curDate = dates.from
     Object.entries(currencies)
       .filter(currency => currency[1])
       .forEach((currency) => {
-        let curDate = dates.from
         let promises = []
         for(let i = 0; curDate.add(i, 'day').isBefore(dates.to); i++){
           if(!(data[currency[0]] && data[currency[0]][curDate.add(i, 'day').format('YYYY-MM-DD')])){
@@ -60,16 +61,17 @@ function App() {
           allData[currency[0]] = {...data[currency[0]], ...addToData}
         })
     })
+    for(let i = 0; curDate.add(i, 'day').isBefore(dates.to); i++){
+            let addToChart = {}
+            Object.entries(allData)
+                .forEach(currencyData => {
+                    addToChart[currencyData[0]] = currencyData[1][curDate.add(i, 'day').format('YYYY-MM-DD')]
+                })
+            toChart.push({date: curDate.add(i, 'day').format('YYYY-MM-DD'), ...addToChart})
+    }
+    setSelectedData(toChart)
     setData(allData)
-  }, [currencies, dates])
-
-  useEffect(() => {
-    Object.entries(data)
-      .filter(currency => currencies[currency[0]])
-      .forEach(currencyData => {
-        // Object.keys(currencyData[1]).filter(currencyDate => dayjs(currencyDate).isBetween(dayjs(dates.from), dayjs(dates.to)))
-        console.log(currencyData)
-      })
+    console.log(allData, toChart)
   }, [currencies, dates])
   return (
     <>
@@ -122,10 +124,15 @@ function App() {
               </FormGroup>
             </Grid>
             <Grid item xs={8}>
-              {JSON.stringify(selectedData)}
-              {/* <LineChart width={400} height={400} data={data}>
-                <Line type="monotone" dataKey="eur" stroke="#8884d8" />
-              </LineChart> */}
+              <LineChart width={600} height={400} data={selectedData}>
+                <CartesianGrid strokeDasharray="10" strokeWidth={3}/>
+                <Tooltip />
+                <Legend />
+                {currencies.eur && <Line type="monotone" dataKey="eur" stroke="#8884d8" strokeWidth={3}/>}
+                {currencies.usd && <Line type="monotone" dataKey="usd" stroke="#82ca9d" strokeWidth={3}/>}
+                {currencies.cny && <Line type="monotone" dataKey="cny" stroke="#a7d3fe" strokeWidth={3}/>}
+                <XAxis dataKey="date" />
+              </LineChart>
             </Grid>
           </Grid>
           <Typography variant="h3" alignSelf={"end"}>
@@ -136,9 +143,5 @@ function App() {
     </>
   );
 }
-
 export default App;
-function isBetween(option: unknown, c: typeof Dayjs, d: typeof dayjs): void {
-  throw new Error("Function not implemented.");
-}
 

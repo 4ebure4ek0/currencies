@@ -1,7 +1,6 @@
 import "@fontsource/roboto/400.css";
 import {
   Container,
-  FormControlLabel,
   FormGroup,
   Grid,
   Typography,
@@ -42,11 +41,7 @@ function App() {
     setDates({ ...dates, [name]: newValue });
   };
 
-  // const sortDates = (a:any, b:any) => {
-  //   return a.date - b.date
-  // }
-
-  const getDays = useMemo(() => {
+  useEffect(() => {
     let days = []
     let dateFrom = dates.from;
     for (let i = 0; dateFrom.add(i, "day").isBefore(dates.to); i++) {
@@ -95,7 +90,6 @@ function App() {
       });
     });
     setData([...allDataFromMemory]);
-    console.log(data.filter((item: { date: string; }) => item.date in filterDays))
   }, [currencies, dates, getApi]);
 
   return (
@@ -135,13 +129,15 @@ function App() {
                     setCurrencies={handleCurrencies}
                   />
                 ))}
-                {Object.keys(dates).map(item => {
-                  return <DateInput name={item} date={dates[item]} setDate={handleDates}/>
+                {Object.keys(dates).map((item, n) => {
+                  return <DateInput key={n} name={item} date={dates[item]} setDate={handleDates}/>
                 })}
               </FormGroup>
             </Grid>
             <Grid item xs={8}>
-              <Chart data={data} currencies={currencies}/>
+              <Chart data={data
+                .filter((item: { date: string; }) => filterDays.includes(item.date))
+              } currencies={currencies}/>
             </Grid>
           </Grid>
           <Typography variant="h3" alignSelf={"end"}>

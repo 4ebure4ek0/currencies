@@ -6,73 +6,92 @@ import {
   Grid,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DateInput from "./components/dateInput";
 import CheckboxUi from "./components/checkbox";
 import dayjs, { Dayjs } from "dayjs";
 import axios from "axios";
-import { LineChart, Line, XAxis, CartesianGrid, Legend, Tooltip } from 'recharts';
+import Chart from "./components/chart";
+
 function App() {
   const [getApi, setGetApi] = useState<Number>(0);
   const [currencies, setCurrencies] = useState({
-    eur: false, 
-    usd: false, 
-    cny: false
-  })
+    eur: false,
+    usd: false,
+    cny: false,
+  });
   const [dates, setDates] = useState({
-    from: dayjs().subtract(7, 'd'),
-    to: dayjs()
-  })
-  const [data, setData] = useState<any>([])
-  const [selectedData, setSelectedData] = useState<any>({})
+    from: dayjs().subtract(7, "d"),
+    to: dayjs(),
+  });
+  const [filterDays, setFilterDays] = useState<Array<string>>([])
+  const [data, setData] = useState<any>([]);
 
   const handleCurrencies = (e: any) => {
-    console.log()
-    setCurrencies({...currencies, [e.target.name]: e.target.checked})
-  }
+    console.log();
+    setCurrencies({ ...currencies, [e.target.name]: e.target.checked });
+  };
 
   const handleDates = (newValue: Dayjs | null, name: string) => {
-    setDates({...dates, [name]: newValue})
-  }
+    setDates({ ...dates, [name]: newValue });
+  };
+
+  // const sortDates = (a:any, b:any) => {
+  //   return a.date - b.date
+  // }
+
+  const getDays = useMemo(() => {
+    let days = []
+    let dateFrom = dates.from;
+    for (let i = 0; dateFrom.add(i, "day").isBefore(dates.to); i++) {
+      days.push(dateFrom.add(i, "day").format("YYYY-MM-DD"))
+    }
+    setFilterDays([...days])
+  }, [dates])
 
   useEffect(() => {
-    let allData: any = data
-    let toChart: any= []
-    let curDate = dates.from
-    Object.entries(currencies)
-      .filter(currency => currency[1])
-      .forEach((currency) => {
-        let promises = []
-        for(let i = 0; curDate.add(i, 'day').isBefore(dates.to); i++){
-          if(!(data[currency[0]] && data[currency[0]][curDate.add(i, 'day').format('YYYY-MM-DD')])){
-            promises.push(
-              axios.get(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${curDate.add(i, 'day').format('YYYY-MM-DD')}/v1/currencies/${currency[0]}.json`)
-                .then(res => {
-                  setGetApi(prev => Number(prev) + 1)
-                  return res.data
-                })
-            )
-          }
-        }
-        Promise.all(promises)
-        .then(res => {
-          let addToData: any = {}
-          res.forEach((item) => addToData[item.date] = item[currency[0]].rub)
-          allData[currency[0]] = {...data[currency[0]], ...addToData}
-        })
-    })
-    for(let i = 0; curDate.add(i, 'day').isBefore(dates.to); i++){
-            let addToChart = {}
-            Object.entries(allData)
-                .forEach(currencyData => {
-                    addToChart[currencyData[0]] = currencyData[1][curDate.add(i, 'day').format('YYYY-MM-DD')]
-                })
-            toChart.push({date: curDate.add(i, 'day').format('YYYY-MM-DD'), ...addToChart})
+    let allDataFromMemory: any = [...data];
+    let dateFrom = dates.from;
+    for (let i = 0; dateFrom.add(i, "day").isBefore(dates.to); i++) {
+      if (
+        !allDataFromMemory.find(
+          (data: { date: string }) =>
+            data.date == dateFrom.add(i, "day").format("YYYY-MM-DD")
+        )
+      )
+        allDataFromMemory.push({
+          date: dateFrom.add(i, "day").format("YYYY-MM-DD"),
+        });
     }
-    setSelectedData(toChart)
-    setData(allData)
-    console.log(allData, toChart)
-  }, [currencies, dates])
+    allDataFromMemory.forEach((dataItem: { [x: string]: any; date: any }) => {
+      let promises: any = [];
+      Object.entries(currencies)
+        .filter((currency) => currency[1])
+        .forEach((currency) => {
+          if (!dataItem[currency[0]]) {
+            promises.push(
+              axios
+                .get(
+                  `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dataItem.date}/v1/currencies/${currency[0]}.json`
+                )
+                .then((res) => {
+                  setGetApi((prev) => Number(prev) + 1);
+                  return res.data;
+                })
+            );
+          }
+        });
+      Promise.all(promises).then((res) => {
+        res.forEach((item) => {
+          dataItem[Object.entries(item)[1][0]] =
+            item[Object.entries(item)[1][0]].rub;
+        });
+      });
+    });
+    setData([...allDataFromMemory]);
+    console.log(data.filter((item: { date: string; }) => item.date in filterDays))
+  }, [currencies, dates, getApi]);
+
   return (
     <>
       <Container
@@ -102,15 +121,26 @@ function App() {
                   gap: 3,
                 }}
               >
-                {
-                  Object.entries(currencies).map((cur, n) => (<CheckboxUi key={n} name={cur[0]} value={cur[1]} setCurrencies={handleCurrencies}/>))
-                }
+                {Object.entries(currencies).map((cur, n) => (
+                  <CheckboxUi
+                    key={n}
+                    name={cur[0]}
+                    value={cur[1]}
+                    setCurrencies={handleCurrencies}
+                  />
+                ))}
                 <FormControlLabel
                   sx={{
                     justifyContent: "space-between",
                   }}
                   labelPlacement={"start"}
-                  control={<DateInput date={dates.from} setDate={handleDates} name={"from"}/>}
+                  control={
+                    <DateInput
+                      date={dates.from}
+                      setDate={handleDates}
+                      name={"from"}
+                    />
+                  }
                   label={<Typography variant="h4">Дата с</Typography>}
                 />
                 <FormControlLabel
@@ -118,21 +148,19 @@ function App() {
                     justifyContent: "space-between",
                   }}
                   labelPlacement={"start"}
-                  control={<DateInput date={dates.to} setDate={handleDates} name={"to"}/>}
+                  control={
+                    <DateInput
+                      date={dates.to}
+                      setDate={handleDates}
+                      name={"to"}
+                    />
+                  }
                   label={<Typography variant="h4">Дата до</Typography>}
                 />
               </FormGroup>
             </Grid>
             <Grid item xs={8}>
-              <LineChart width={600} height={400} data={selectedData}>
-                <CartesianGrid strokeDasharray="10" strokeWidth={3}/>
-                <Tooltip />
-                <Legend />
-                {currencies.eur && <Line type="monotone" dataKey="eur" stroke="#8884d8" strokeWidth={3}/>}
-                {currencies.usd && <Line type="monotone" dataKey="usd" stroke="#82ca9d" strokeWidth={3}/>}
-                {currencies.cny && <Line type="monotone" dataKey="cny" stroke="#a7d3fe" strokeWidth={3}/>}
-                <XAxis dataKey="date" />
-              </LineChart>
+              <Chart data={data} currencies={currencies}/>
             </Grid>
           </Grid>
           <Typography variant="h3" alignSelf={"end"}>
@@ -144,4 +172,3 @@ function App() {
   );
 }
 export default App;
-

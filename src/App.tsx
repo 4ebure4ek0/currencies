@@ -13,6 +13,13 @@ import dayjs, { Dayjs } from "dayjs";
 import axios from "axios";
 import Chart from "./components/chart";
 
+interface IData{
+  date: string;
+  usd?: number;
+  eur?: number;
+  cny?: number
+}
+
 function App() {
   const [getApi, setGetApi] = useState<Number>(0);
   const [currencies, setCurrencies] = useState({
@@ -25,10 +32,9 @@ function App() {
     to: dayjs(),
   });
   const [filterDays, setFilterDays] = useState<Array<string>>([])
-  const [data, setData] = useState<any>([]);
+  const [data, setData] = useState<Array<IData>>([]);
 
   const handleCurrencies = (e: any) => {
-    console.log();
     setCurrencies({ ...currencies, [e.target.name]: e.target.checked });
   };
 
@@ -129,34 +135,9 @@ function App() {
                     setCurrencies={handleCurrencies}
                   />
                 ))}
-                <FormControlLabel
-                  sx={{
-                    justifyContent: "space-between",
-                  }}
-                  labelPlacement={"start"}
-                  control={
-                    <DateInput
-                      date={dates.from}
-                      setDate={handleDates}
-                      name={"from"}
-                    />
-                  }
-                  label={<Typography variant="h4">Дата с</Typography>}
-                />
-                <FormControlLabel
-                  sx={{
-                    justifyContent: "space-between",
-                  }}
-                  labelPlacement={"start"}
-                  control={
-                    <DateInput
-                      date={dates.to}
-                      setDate={handleDates}
-                      name={"to"}
-                    />
-                  }
-                  label={<Typography variant="h4">Дата до</Typography>}
-                />
+                {Object.keys(dates).map(item => {
+                  return <DateInput name={item} date={dates[item]} setDate={handleDates}/>
+                })}
               </FormGroup>
             </Grid>
             <Grid item xs={8}>
